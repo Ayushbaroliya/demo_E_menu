@@ -48,11 +48,13 @@ body{
     radial-gradient(circle at 12% 0%, rgba(31,111,102,.16), transparent 45%),
     radial-gradient(circle at 90% 8%, rgba(200,64,42,.10), transparent 40%),
     var(--ink);
+  background-attachment: fixed;
   color:var(--text);
   font-family:var(--f-body);
   -webkit-font-smoothing:antialiased;
   min-height:100vh;
   overflow-x:hidden;
+  contain: layout style paint;
 }
 img{display:block;max-width:100%;}
 button{font-family:inherit;cursor:pointer;}
@@ -180,16 +182,17 @@ a{color:inherit;}
   border:1px solid rgba(255,255,255,.06);
   overflow:hidden;
   opacity:0; transform:translateY(28px);
-  transition:opacity .6s var(--ease), transform .6s var(--ease), box-shadow .35s;
-  transition-delay:calc(var(--i,0) * 50ms);
+  transition:opacity .5s var(--ease), transform .5s var(--ease), box-shadow .25s;
+  transition-delay:calc(var(--i,0) * 30ms);
+  will-change: transform, opacity;
 }
 .dish-card.in-view{opacity:1; transform:translateY(0);}
 .dish-card:hover{box-shadow:0 16px 34px rgba(0,0,0,.45); transform:translateY(-4px);}
 .dish-card.in-view:hover{transform:translateY(-4px);}
 
-.dish-media{position:relative; aspect-ratio:4/3; overflow:hidden;}
-.dish-media img{width:100%; height:100%; object-fit:cover; transition:transform .6s var(--ease);}
-.dish-card:hover .dish-media img{transform:scale(1.07);}
+.dish-media{position:relative; aspect-ratio:4/3; overflow:hidden; background:#000;}
+.dish-media img{width:100%; height:100%; object-fit:cover; transition:transform .4s var(--ease); will-change: transform;}
+.dish-card:hover .dish-media img{transform:scale(1.05);}
 .dish-media::after{
   content:''; position:absolute; inset:0;
   background:linear-gradient(180deg, transparent 55%, rgba(12,19,16,.85));
@@ -481,26 +484,22 @@ a{color:inherit;}
    RESPONSIVE
    ============================================================ */
 
-/* Loading animation - themed shimmer effect */
+/* Loading animation - lightweight shimmer effect */
 @keyframes shimmer {
-  0% { background-position: -1000px 0; }
-  100% { background-position: 1000px 0; }
+  0% { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
 }
 
 .loading {
-  background: linear-gradient(90deg, 
-    var(--ink-raise) 0%,
-    var(--ink-raise) 25%,
-    var(--teal-deep) 50%,
-    var(--ink-raise) 75%,
-    var(--ink-raise) 100%);
-  background-size: 1000px 100%;
-  animation: shimmer 2s infinite;
+  background: linear-gradient(90deg, var(--ink-raise) 25%, var(--teal-deep) 50%, var(--ink-raise) 75%);
+  background-size: 400px 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  will-change: background-position;
 }
 
 .cat-thumb.loading img,
 .dish-media.loading img {
-  opacity: 0.5;
+  opacity: 0.6;
 }
 @media (max-width:640px){
   .brand-name{font-size:1.2rem;}
@@ -1008,16 +1007,16 @@ const revealObserver = new IntersectionObserver(entries => {
       // Stop inline video if card scrolls out of view
       const video = en.target.querySelector('.dish-video');
       const image = en.target.querySelector('.dish-image');
-      const playBtn = en.target.querySelector('.play-btn');
       if (video && video.style.display !== 'none') {
         video.pause();
         video.style.display = 'none';
-        image.style.display = 'block';
+        if (image) image.style.display = 'block';
+        const playBtn = en.target.querySelector('.play-btn');
         if (playBtn) playBtn.classList.remove('playing');
       }
     }
   });
-}, { threshold:.12, rootMargin:'0px 0px -40px 0px' });
+}, { threshold:.05, rootMargin:'0px 0px -100px 0px' });
 document.querySelectorAll('.dish-card').forEach(c => revealObserver.observe(c));
 
 /* ---------- scrollspy for category rail ---------- */
@@ -1036,21 +1035,22 @@ const spyObserver = new IntersectionObserver(entries => {
 sections.forEach(s => spyObserver.observe(s));
 
 /* ---------- lazy loading with animation ---------- */
+const loadingCache = new WeakMap();
 document.addEventListener('DOMContentLoaded', () => {
   const images = document.querySelectorAll('img[loading="lazy"]');
   
   images.forEach(img => {
     const container = img.closest('.cat-thumb') || img.closest('.dish-media');
-    if (container) {
+    if (container && !loadingCache.has(img)) {
+      loadingCache.set(img, true);
       container.classList.add('loading');
       
-      img.addEventListener('load', () => {
+      const handleLoadEnd = () => {
         container.classList.remove('loading');
-      });
+      };
       
-      img.addEventListener('error', () => {
-        container.classList.remove('loading');
-      });
+      img.addEventListener('load', handleLoadEnd, { once: true });
+      img.addEventListener('error', handleLoadEnd, { once: true });
     }
   });
 });
