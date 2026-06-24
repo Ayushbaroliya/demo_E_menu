@@ -206,6 +206,12 @@ a{color:inherit;}
 .play-btn:hover{background:var(--chili); border-color:var(--chili);}
 .play-btn:active{transform:scale(.94);}
 .play-btn svg{width:16px; height:16px; flex-shrink:0;}
+.play-btn.playing{display:none;}
+
+.dish-video{
+  width:100%; height:100%; object-fit:cover;
+  position:absolute; top:0; left:0;
+}
 
 .diet-mark{
   position:absolute; top:10px; left:10px; z-index:2;
@@ -751,8 +757,9 @@ CONFIG.categories.forEach(cat => {
       <div class="dish-media">
         <span class="diet-mark ${it.veg ? 'veg' : 'nonveg'}" title="${it.veg ? 'Vegetarian' : 'Non-vegetarian'}"></span>
         ${it.spice > 0 ? `<span class="spice-row">${Array.from({length:3},(_,k)=>chiliIcon(k < it.spice)).join('')}</span>` : ''}
-        <img src="${it.image}" alt="${it.name}" loading="lazy">
-        <button class="play-btn" data-video="${it.video || ''}" data-title="${it.name}">
+        <img src="${it.image}" alt="${it.name}" loading="lazy" class="dish-image">
+        <video class="dish-video" controls playsinline style="display:none;" data-video="${it.video || ''}"></video>
+        <button class="play-btn" data-video="${it.video || ''}" data-title="${it.name}" data-id="${it.id}">
           <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7-11-7Z"/></svg> Preview
         </button>
       </div>
@@ -805,9 +812,26 @@ menuEl.addEventListener('click', e => {
     renderQtyZones(); updateCart();
   }
   if (playBtn) {
+    e.preventDefault();
+    const videoSrc = playBtn.dataset.video;
+    if (!videoSrc) { showToast('No preview video available'); return; }
     const card = playBtn.closest('.dish-card');
-    currentVideoCard = card;
-    openVideo(playBtn.dataset.video, playBtn.dataset.title);
+    const video = card.querySelector('.dish-video');
+    const image = card.querySelector('.dish-image');
+    
+    if (video.style.display === 'none') {
+      video.src = videoSrc;
+      video.style.display = 'block';
+      image.style.display = 'none';
+      playBtn.classList.add('playing');
+      video.play().catch(()=>{});
+    }
+    
+    video.addEventListener('ended', () => {
+      video.style.display = 'none';
+      image.style.display = 'block';
+      playBtn.classList.remove('playing');
+    }, { once: true });
   }
 });
 
@@ -981,9 +1005,15 @@ const revealObserver = new IntersectionObserver(entries => {
     if (en.isIntersecting) {
       en.target.classList.add('in-view');
     } else {
-      // Close video modal if card scrolls out of view
-      if (currentVideoCard === en.target && videoOverlay.classList.contains('open')) {
-        closeVideo();
+      // Stop inline video if card scrolls out of view
+      const video = en.target.querySelector('.dish-video');
+      const image = en.target.querySelector('.dish-image');
+      const playBtn = en.target.querySelector('.play-btn');
+      if (video && video.style.display !== 'none') {
+        video.pause();
+        video.style.display = 'none';
+        image.style.display = 'block';
+        if (playBtn) playBtn.classList.remove('playing');
       }
     }
   });
@@ -1022,6 +1052,14 @@ document.addEventListener('DOMContentLoaded', () => {
         container.classList.remove('loading');
       });
     }
+  });
+});
+
+/* ---------- reset inline videos on page unload ---------- */
+window.addEventListener('beforeunload', () => {
+  document.querySelectorAll('.dish-video').forEach(video => {
+    video.pause();
+    video.currentTime = 0;
   });
 });
 </script>
