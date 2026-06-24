@@ -1,0 +1,961 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>My Menu — Table Menu</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400..800&family=Space+Grotesk:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+<style>
+/* ============================================================
+   ░░  MY MENU — DESIGN TOKENS
+   Palette pulled from enamel-ware serveware + KOT order chits:
+   ink (the cast-iron tawa), teal (the enamel serving body),
+   chili (the rim paint + spice), paper (the order chit)
+   ============================================================ */
+:root{
+  --ink:        #16211c;
+  --ink-deep:   #0c1310;
+  --ink-raise:  #1d2b24;
+  --teal:       #1f6f66;
+  --teal-deep:  #133e38;
+  --teal-glow:  #2f9384;
+  --chili:      #c8402a;
+  --chili-deep: #8f2c1c;
+  --chili-glow: #e85b3f;
+  --paper:      #f4efe1;
+  --paper-dim:  #e6dec8;
+  --steel:      #a6b3ab;
+  --steel-dim:  #6c7a71;
+  --text:       #eef0e8;
+
+  --f-display: 'Bricolage Grotesque', system-ui, sans-serif;
+  --f-body:    'Space Grotesk', system-ui, sans-serif;
+  --f-mono:    'Space Mono', monospace;
+
+  --r-sm: 8px;
+  --r-md: 16px;
+  --r-lg: 26px;
+  --ease: cubic-bezier(.22,1,.36,1);
+}
+
+*{box-sizing:border-box;}
+html,body{margin:0;padding:0;}
+body{
+  background:
+    radial-gradient(circle at 12% 0%, rgba(31,111,102,.16), transparent 45%),
+    radial-gradient(circle at 90% 8%, rgba(200,64,42,.10), transparent 40%),
+    var(--ink);
+  color:var(--text);
+  font-family:var(--f-body);
+  -webkit-font-smoothing:antialiased;
+  min-height:100vh;
+  overflow-x:hidden;
+}
+img{display:block;max-width:100%;}
+button{font-family:inherit;cursor:pointer;}
+a{color:inherit;}
+
+@media (prefers-reduced-motion: reduce){
+  *{animation-duration:.001ms !important; transition-duration:.001ms !important;}
+}
+
+/* subtle perforated-paper background texture, like dotted spice grains */
+.grain{
+  position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+  background-image: radial-gradient(rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 22px 22px;
+}
+
+/* ============================================================
+   TOPBAR
+   ============================================================ */
+.topbar{
+  position:sticky; top:0; z-index:40;
+  display:flex; align-items:center; justify-content:space-between;
+  padding:14px clamp(16px,4vw,40px);
+  background:linear-gradient(180deg, rgba(13,19,16,.96), rgba(13,19,16,.82));
+  backdrop-filter:blur(10px);
+  border-bottom:1px solid rgba(255,255,255,.06);
+}
+.brand{display:flex; align-items:center; gap:12px;}
+.brand-mark{
+  width:42px; height:42px; border-radius:50%;
+  background:conic-gradient(from 200deg, var(--teal), var(--teal-deep) 40%, var(--chili) 75%, var(--teal) 100%);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow: inset 0 0 0 2px rgba(255,255,255,.18), 0 4px 14px rgba(0,0,0,.4);
+  flex-shrink:0;
+}
+.brand-mark svg{width:22px; height:22px;}
+.brand-name{
+  font-family:var(--f-display); font-weight:700; font-size:1.45rem;
+  letter-spacing:.01em; line-height:1; margin:0;
+}
+.brand-tag{
+  font-family:var(--f-mono); font-size:.62rem; letter-spacing:.14em;
+  text-transform:uppercase; color:var(--steel); margin:2px 0 0;
+}
+.fullscreen-btn{
+  display:flex; align-items:center; gap:8px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.14);
+  color:var(--text); padding:10px 16px; border-radius:30px;
+  font-size:.78rem; font-weight:600; letter-spacing:.02em;
+  transition:transform .25s var(--ease), background .25s;
+}
+.fullscreen-btn:hover{background:rgba(255,255,255,.12); transform:translateY(-1px);}
+.fullscreen-btn:active{transform:scale(.96);}
+.fullscreen-btn svg{width:16px; height:16px;}
+
+/* ============================================================
+   CATEGORY RAIL — round seals, scroll-snap
+   ============================================================ */
+.cat-rail-wrap{
+  position:sticky; top:73px; z-index:35;
+  background:linear-gradient(180deg, var(--ink) 60%, rgba(22,33,28,.85));
+  padding:16px 0 14px;
+  border-bottom:1px solid rgba(255,255,255,.05);
+}
+.cat-rail{
+  display:flex; gap:18px; overflow-x:auto; scroll-snap-type:x proximity;
+  padding:2px clamp(16px,4vw,40px) 6px;
+  scrollbar-width:none;
+}
+.cat-rail::-webkit-scrollbar{display:none;}
+.cat-btn{
+  scroll-snap-align:start;
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  background:none; border:none; color:var(--steel); flex-shrink:0;
+  width:74px;
+}
+.cat-thumb{
+  width:64px; height:64px; border-radius:50%;
+  border:2px solid rgba(255,255,255,.12);
+  overflow:hidden; position:relative;
+  transition:border-color .3s var(--ease), transform .3s var(--ease), box-shadow .3s var(--ease);
+}
+.cat-thumb img{width:100%; height:100%; object-fit:cover;}
+.cat-btn span{
+  font-size:.68rem; font-weight:600; letter-spacing:.01em;
+  text-align:center; line-height:1.15; transition:color .25s;
+}
+.cat-btn.active .cat-thumb{
+  border-color:var(--chili-glow);
+  box-shadow:0 0 0 4px rgba(200,64,42,.16), 0 6px 16px rgba(0,0,0,.4);
+  transform:translateY(-2px) scale(1.04);
+}
+.cat-btn.active span{color:var(--chili-glow);}
+.cat-btn:hover .cat-thumb{transform:translateY(-2px);}
+
+/* ============================================================
+   MAIN MENU
+   ============================================================ */
+.menu{max-width:1180px; margin:0 auto; padding:8px clamp(16px,4vw,40px) 160px; position:relative; z-index:1;}
+
+.section-block{padding-top:46px; scroll-margin-top:170px;}
+.section-head{display:flex; align-items:baseline; gap:14px; margin-bottom:6px;}
+.section-title{
+  font-family:var(--f-display); font-weight:700; font-size:clamp(1.7rem,3.4vw,2.3rem);
+  margin:0; letter-spacing:-.01em;
+}
+.section-count{
+  font-family:var(--f-mono); font-size:.72rem; color:var(--steel-dim);
+  white-space:nowrap;
+}
+.section-rule{
+  height:1px; background:linear-gradient(90deg, var(--teal-glow), transparent);
+  margin:10px 0 28px; opacity:.5;
+}
+
+.dish-grid{
+  display:grid; grid-template-columns:repeat(auto-fill, minmax(255px,1fr));
+  gap:22px;
+}
+
+.dish-card{
+  background:linear-gradient(165deg, var(--ink-raise), var(--ink-deep));
+  border-radius:var(--r-lg);
+  border:1px solid rgba(255,255,255,.06);
+  overflow:hidden;
+  opacity:0; transform:translateY(28px);
+  transition:opacity .6s var(--ease), transform .6s var(--ease), box-shadow .35s;
+  transition-delay:calc(var(--i,0) * 50ms);
+}
+.dish-card.in-view{opacity:1; transform:translateY(0);}
+.dish-card:hover{box-shadow:0 16px 34px rgba(0,0,0,.45); transform:translateY(-4px);}
+.dish-card.in-view:hover{transform:translateY(-4px);}
+
+.dish-media{position:relative; aspect-ratio:4/3; overflow:hidden;}
+.dish-media img{width:100%; height:100%; object-fit:cover; transition:transform .6s var(--ease);}
+.dish-card:hover .dish-media img{transform:scale(1.07);}
+.dish-media::after{
+  content:''; position:absolute; inset:0;
+  background:linear-gradient(180deg, transparent 55%, rgba(12,19,16,.85));
+}
+.play-btn{
+  position:absolute; bottom:10px; left:10px; z-index:2;
+  display:flex; align-items:center; gap:7px;
+  background:rgba(12,19,16,.62); backdrop-filter:blur(6px);
+  border:1px solid rgba(255,255,255,.22);
+  color:var(--paper); padding:7px 12px 7px 9px; border-radius:30px;
+  font-size:.68rem; font-weight:600; letter-spacing:.02em;
+  transition:background .25s, transform .25s var(--ease);
+}
+.play-btn:hover{background:var(--chili); border-color:var(--chili);}
+.play-btn:active{transform:scale(.94);}
+.play-btn svg{width:16px; height:16px; flex-shrink:0;}
+
+.diet-mark{
+  position:absolute; top:10px; left:10px; z-index:2;
+  width:17px; height:17px; border:1.6px solid; border-radius:3px;
+  display:flex; align-items:center; justify-content:center;
+  background:rgba(12,19,16,.5);
+}
+.diet-mark.veg{border-color:#3fae5c;}
+.diet-mark.veg::after{content:''; width:7px; height:7px; border-radius:50%; background:#3fae5c;}
+.diet-mark.nonveg{border-color:var(--chili-glow);}
+.diet-mark.nonveg::after{
+  content:''; width:0; height:0;
+  border-left:5px solid transparent; border-right:5px solid transparent;
+  border-bottom:8px solid var(--chili-glow);
+}
+
+.spice-row{position:absolute; top:11px; right:10px; z-index:2; display:flex; gap:3px;}
+.spice-row svg{width:13px; height:13px;}
+
+.dish-body{padding:16px 16px 14px;}
+.dish-name{
+  font-family:var(--f-display); font-weight:600; font-size:1.07rem;
+  margin:0 0 4px; letter-spacing:-.005em;
+}
+.dish-note{
+  font-size:.78rem; color:var(--steel); margin:0 0 14px; line-height:1.4;
+  min-height:1.1em;
+}
+.dish-foot{display:flex; align-items:center; justify-content:space-between; gap:10px;}
+.dish-price{font-family:var(--f-mono); font-weight:700; font-size:1.02rem; color:var(--paper);}
+.dish-price small{font-size:.7rem; font-weight:400; color:var(--steel-dim);}
+
+.add-btn{
+  background:var(--teal); color:var(--paper); border:none;
+  padding:8px 18px; border-radius:30px; font-weight:700; font-size:.78rem;
+  letter-spacing:.02em; transition:background .25s, transform .2s var(--ease);
+}
+.add-btn:hover{background:var(--teal-glow);}
+.add-btn:active{transform:scale(.93);}
+
+.qty-stepper{
+  display:flex; align-items:center; gap:0;
+  background:var(--teal-deep); border-radius:30px; overflow:hidden;
+}
+.qty-stepper button{
+  background:none; border:none; color:var(--paper); width:32px; height:32px;
+  font-size:1.05rem; font-weight:700; transition:background .2s;
+}
+.qty-stepper button:hover{background:rgba(255,255,255,.12);}
+.qty-stepper span{
+  min-width:22px; text-align:center; font-family:var(--f-mono); font-weight:700; font-size:.85rem;
+}
+
+/* ============================================================
+   STICKY MINI-CART BAR
+   ============================================================ */
+.mini-bar{
+  position:fixed; left:0; right:0; bottom:0; z-index:45;
+  display:flex; align-items:center; justify-content:space-between;
+  margin:0 auto; max-width:1180px;
+  padding:14px clamp(16px,4vw,40px);
+  transform:translateY(120%); opacity:0; pointer-events:none;
+  transition:transform .45s var(--ease), opacity .3s var(--ease);
+}
+.mini-bar.show{transform:translateY(0); opacity:1; pointer-events:auto;}
+.mini-bar-inner{
+  width:100%; display:flex; align-items:center; justify-content:space-between;
+  background:linear-gradient(135deg, var(--chili), var(--chili-deep));
+  border-radius:var(--r-md);
+  padding:14px 20px;
+  box-shadow:0 12px 30px rgba(0,0,0,.5);
+}
+.mini-bar-info{display:flex; flex-direction:column; gap:1px;}
+.mini-bar-count{font-family:var(--f-mono); font-size:.68rem; letter-spacing:.06em; text-transform:uppercase; opacity:.85;}
+.mini-bar-total{font-family:var(--f-display); font-weight:700; font-size:1.25rem;}
+.mini-bar-cta{
+  background:var(--paper); color:var(--ink-deep); border:none;
+  padding:11px 22px; border-radius:30px; font-weight:700; font-size:.85rem;
+  display:flex; align-items:center; gap:8px;
+  transition:transform .2s var(--ease);
+}
+.mini-bar-cta:active{transform:scale(.94);}
+.mini-bar-cta svg{width:16px; height:16px;}
+
+/* ============================================================
+   ORDER CHIT (cart) — styled like a thermal-printer receipt
+   ============================================================ */
+.chit-overlay{
+  position:fixed; inset:0; z-index:60; background:rgba(8,12,10,.65);
+  opacity:0; visibility:hidden; transition:opacity .35s var(--ease);
+}
+.chit-overlay.open{opacity:1; visibility:visible;}
+
+.chit{
+  position:fixed; right:0; bottom:0; top:0; z-index:61;
+  width:min(420px, 92vw);
+  background:var(--paper); color:var(--ink-deep);
+  display:flex; flex-direction:column;
+  transform:translateX(100%); transition:transform .5s var(--ease);
+  box-shadow:-20px 0 50px rgba(0,0,0,.5);
+}
+.chit.open{transform:translateX(0);}
+
+.chit-zigzag{
+  height:14px; flex-shrink:0;
+  background:linear-gradient(135deg, var(--paper) 50%, transparent 50%),
+             linear-gradient(225deg, var(--paper) 50%, transparent 50%);
+  background-size:16px 16px; background-position:0 0, 8px 0;
+  background-color:transparent;
+}
+
+.chit-head{
+  padding:18px 22px 14px; border-bottom:1px dashed var(--steel-dim);
+  display:flex; align-items:center; justify-content:space-between;
+}
+.chit-head h2{
+  font-family:var(--f-mono); font-size:1rem; letter-spacing:.1em; margin:0;
+  text-transform:uppercase;
+}
+.chit-close{background:none; border:none; color:var(--ink-deep); width:30px; height:30px; opacity:.6;}
+.chit-close:hover{opacity:1;}
+.chit-close svg{width:20px; height:20px;}
+
+.chit-meta{
+  font-family:var(--f-mono); font-size:.7rem; color:var(--steel-dim);
+  padding:10px 22px; display:flex; justify-content:space-between;
+  border-bottom:1px dashed var(--steel-dim);
+}
+
+.chit-items{flex:1; overflow-y:auto; padding:6px 22px;}
+.chit-empty{
+  text-align:center; padding:60px 10px; color:var(--steel-dim);
+  font-family:var(--f-mono); font-size:.85rem; line-height:1.7;
+}
+.chit-row{
+  display:flex; align-items:center; gap:12px; padding:14px 0;
+  border-bottom:1px dashed var(--paper-dim);
+}
+.chit-row img{width:46px; height:46px; border-radius:8px; object-fit:cover; flex-shrink:0;}
+.chit-row-name{font-weight:600; font-size:.88rem; margin:0 0 2px;}
+.chit-row-sub{font-family:var(--f-mono); font-size:.7rem; color:var(--steel-dim);}
+.chit-row-right{display:flex; flex-direction:column; align-items:flex-end; gap:6px; margin-left:auto;}
+.chit-row-price{font-family:var(--f-mono); font-weight:700; font-size:.85rem;}
+.chit-qty{display:flex; align-items:center; gap:6px;}
+.chit-qty button{
+  width:22px; height:22px; border-radius:50%; border:1px solid var(--steel-dim);
+  background:none; font-weight:700; font-size:.8rem; line-height:1; color:var(--ink-deep);
+}
+.chit-qty span{font-family:var(--f-mono); font-size:.78rem; min-width:14px; text-align:center;}
+
+.chit-totals{
+  padding:14px 22px; border-top:1px dashed var(--steel-dim);
+  font-family:var(--f-mono); font-size:.8rem;
+}
+.chit-totals-row{display:flex; justify-content:space-between; padding:3px 0; color:var(--steel-dim);}
+.chit-totals-row.grand{
+  color:var(--ink-deep); font-weight:700; font-size:1.05rem;
+  border-top:1px dashed var(--steel-dim); margin-top:8px; padding-top:10px;
+}
+.chit-foot{padding:16px 22px 22px;}
+.chit-place-btn{
+  width:100%; background:var(--teal-deep); color:var(--paper); border:none;
+  padding:15px; border-radius:30px; font-weight:700; font-size:.9rem;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  transition:background .25s, transform .2s var(--ease);
+}
+.chit-place-btn:hover{background:var(--teal);}
+.chit-place-btn:active{transform:scale(.97);}
+.chit-note{
+  text-align:center; font-size:.68rem; color:var(--steel-dim); margin:10px 0 0;
+}
+
+/* ============================================================
+   SERVICE BELL — fixed FAB + bottom sheet
+   ============================================================ */
+.bell-fab{
+  position:fixed; right:clamp(16px,4vw,34px); bottom:96px; z-index:50;
+  width:58px; height:58px; border-radius:50%;
+  background:radial-gradient(circle at 30% 25%, var(--teal-glow), var(--teal-deep) 70%);
+  border:2px solid rgba(255,255,255,.18);
+  display:flex; align-items:center; justify-content:center;
+  box-shadow:0 10px 26px rgba(0,0,0,.5);
+  transition:transform .25s var(--ease);
+}
+.bell-fab svg{width:26px; height:26px;}
+.bell-fab:active{transform:scale(.92);}
+.bell-fab::before{
+  content:''; position:absolute; inset:-6px; border-radius:50%;
+  border:1.5px solid var(--teal-glow); opacity:.5;
+  animation:bell-pulse 2.6s ease-out infinite;
+}
+@keyframes bell-pulse{
+  0%{transform:scale(.85); opacity:.55;}
+  80%{transform:scale(1.25); opacity:0;}
+  100%{opacity:0;}
+}
+
+.sheet-overlay{
+  position:fixed; inset:0; z-index:60; background:rgba(8,12,10,.6);
+  opacity:0; visibility:hidden; transition:opacity .3s var(--ease);
+}
+.sheet-overlay.open{opacity:1; visibility:visible;}
+.sheet{
+  position:fixed; left:0; right:0; bottom:0; z-index:61;
+  max-width:480px; margin:0 auto;
+  background:var(--ink-raise);
+  border-radius:24px 24px 0 0;
+  border-top:1px solid rgba(255,255,255,.1);
+  padding:10px 22px 28px;
+  transform:translateY(110%); transition:transform .45s var(--ease);
+}
+.sheet.open{transform:translateY(0);}
+.sheet-handle{width:40px; height:4px; background:var(--steel-dim); border-radius:4px; margin:8px auto 18px;}
+.sheet h3{font-family:var(--f-display); font-size:1.2rem; margin:0 0 4px;}
+.sheet p{font-size:.8rem; color:var(--steel); margin:0 0 18px;}
+.sheet-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.sheet-opt{
+  display:flex; flex-direction:column; align-items:center; gap:8px;
+  background:rgba(255,255,255,.04); border:1px solid rgba(255,255,255,.08);
+  border-radius:18px; padding:18px 10px; color:var(--text);
+  transition:background .25s, transform .2s var(--ease);
+}
+.sheet-opt:hover{background:rgba(255,255,255,.09);}
+.sheet-opt:active{transform:scale(.95);}
+.sheet-opt svg{width:26px; height:26px; color:var(--chili-glow);}
+.sheet-opt span{font-size:.78rem; font-weight:600;}
+
+/* ============================================================
+   TOAST
+   ============================================================ */
+.toast{
+  position:fixed; top:18px; left:50%; z-index:80;
+  transform:translate(-50%,-120%);
+  background:var(--ink-raise); color:var(--text);
+  border:1px solid rgba(255,255,255,.12);
+  padding:13px 22px; border-radius:30px; font-size:.82rem; font-weight:600;
+  display:flex; align-items:center; gap:10px;
+  box-shadow:0 10px 26px rgba(0,0,0,.5);
+  transition:transform .4s var(--ease);
+}
+.toast.show{transform:translate(-50%,0);}
+.toast svg{width:17px; height:17px; color:var(--teal-glow); flex-shrink:0;}
+
+/* ============================================================
+   VIDEO MODAL
+   ============================================================ */
+.video-overlay{
+  position:fixed; inset:0; z-index:70; background:rgba(5,8,7,.86);
+  display:flex; align-items:center; justify-content:center; padding:20px;
+  opacity:0; visibility:hidden; transition:opacity .3s var(--ease);
+}
+.video-overlay.open{opacity:1; visibility:visible;}
+.video-box{
+  width:min(720px,100%); background:var(--ink-deep); border-radius:18px; overflow:hidden;
+  transform:scale(.92); transition:transform .3s var(--ease);
+  border:1px solid rgba(255,255,255,.1);
+}
+.video-overlay.open .video-box{transform:scale(1);}
+.video-box-head{
+  display:flex; justify-content:space-between; align-items:center;
+  padding:14px 18px; font-family:var(--f-display); font-weight:600;
+}
+.video-box-head button{background:none; border:none; color:var(--text); opacity:.7;}
+.video-box video{width:100%; display:block; max-height:70vh; background:#000;}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width:640px){
+  .brand-name{font-size:1.2rem;}
+  .fullscreen-btn span{display:none;}
+  .fullscreen-btn{padding:10px;}
+  .dish-grid{grid-template-columns:repeat(auto-fill, minmax(150px,1fr)); gap:14px;}
+  .dish-body{padding:12px 12px 12px;}
+  .bell-fab{bottom:88px; width:52px; height:52px;}
+  .chit{width:100%;}
+}
+@media (min-width:1280px){
+  .dish-grid{grid-template-columns:repeat(4,1fr);}
+}
+</style>
+</head>
+<body>
+
+<div class="grain"></div>
+
+<!-- ===================== TOPBAR ===================== -->
+<header class="topbar">
+  <div class="brand">
+    <div class="brand-mark">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M5 9h14l-1.4 9.2A2 2 0 0 1 15.6 20H8.4a2 2 0 0 1-2-1.8L5 9Z" stroke="#fff" stroke-width="1.6"/><path d="M8 9V7a4 4 0 0 1 8 0v2" stroke="#fff" stroke-width="1.6"/><path d="M3 9h18" stroke="#fff" stroke-width="1.6" stroke-linecap="round"/></svg>
+    </div>
+    <div>
+      <p class="brand-name" id="restaurantName">MY MENU</p>
+      <p class="brand-tag" id="restaurantTag">DIGITAL TABLE MENU</p>
+    </div>
+  </div>
+  <button class="fullscreen-btn" id="fullscreenBtn" aria-label="Toggle fullscreen">
+    <svg viewBox="0 0 24 24" fill="none"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    <span>View Fullscreen</span>
+  </button>
+</header>
+
+<!-- ===================== CATEGORY RAIL ===================== -->
+<div class="cat-rail-wrap">
+  <nav class="cat-rail" id="catRail" aria-label="Menu categories"></nav>
+</div>
+
+<!-- ===================== MENU ===================== -->
+<main class="menu" id="menu"></main>
+
+<!-- ===================== STICKY MINI CART BAR ===================== -->
+<div class="mini-bar" id="miniBar">
+  <div class="mini-bar-inner">
+    <div class="mini-bar-info">
+      <span class="mini-bar-count" id="miniBarCount">0 items</span>
+      <span class="mini-bar-total" id="miniBarTotal">₹0</span>
+    </div>
+    <button class="mini-bar-cta" id="openChitBtn">
+      View Order Chit
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    </button>
+  </div>
+</div>
+
+<!-- ===================== ORDER CHIT (CART) ===================== -->
+<div class="chit-overlay" id="chitOverlay"></div>
+<aside class="chit" id="chit" aria-label="Your order">
+  <div class="chit-zigzag"></div>
+  <div class="chit-head">
+    <h2>* Order Chit *</h2>
+    <button class="chit-close" id="closeChitBtn" aria-label="Close cart">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+  </div>
+  <div class="chit-meta">
+    <span id="tableLabel">TABLE 07</span>
+    <span id="chitTime">--:--</span>
+  </div>
+  <div class="chit-items" id="chitItems"></div>
+  <div class="chit-totals" id="chitTotals"></div>
+  <div class="chit-foot">
+    <button class="chit-place-btn" id="placeOrderBtn">
+      <svg viewBox="0 0 24 24" fill="none" width="18" height="18"><path d="M4 12l5 5L20 6" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      Send to Kitchen
+    </button>
+    <p class="chit-note">No payment is taken here — this sends your order to the waiter.</p>
+  </div>
+</aside>
+
+<!-- ===================== SERVICE BELL ===================== -->
+<button class="bell-fab" id="bellFab" aria-label="Call for service">
+  <svg viewBox="0 0 24 24" fill="none"><path d="M18 16v-5a6 6 0 0 0-12 0v5l-2 3h16l-2-3Z" stroke="#fff" stroke-width="1.7" stroke-linejoin="round"/><path d="M10 20a2 2 0 0 0 4 0" stroke="#fff" stroke-width="1.7" stroke-linecap="round"/></svg>
+</button>
+
+<div class="sheet-overlay" id="sheetOverlay"></div>
+<section class="sheet" id="serviceSheet" aria-label="Request service">
+  <div class="sheet-handle"></div>
+  <h3>Need something?</h3>
+  <p>Tap an option — the waiter for your table will be notified.</p>
+  <div class="sheet-grid">
+    <button class="sheet-opt" data-request="Water">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M12 3s7 7.5 7 12a7 7 0 0 1-14 0c0-4.5 7-12 7-12Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/></svg>
+      <span>Water</span>
+    </button>
+    <button class="sheet-opt" data-request="Tissues">
+      <svg viewBox="0 0 24 24" fill="none"><rect x="4" y="7" width="16" height="11" rx="1.5" stroke="currentColor" stroke-width="1.7"/><path d="M6 7c1-3 11-3 12 0" stroke="currentColor" stroke-width="1.7"/></svg>
+      <span>Tissues</span>
+    </button>
+    <button class="sheet-opt" data-request="Waiter">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="6" r="2.4" stroke="currentColor" stroke-width="1.7"/><path d="M5 20c0-4 3-6.5 7-6.5s7 2.5 7 6.5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>Call Waiter</span>
+    </button>
+    <button class="sheet-opt" data-request="Bill">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M7 3h10v18l-2.5-1.5L12 21l-2.5-1.5L7 21V3Z" stroke="currentColor" stroke-width="1.7" stroke-linejoin="round"/><path d="M9.5 8h5M9.5 11.5h5" stroke="currentColor" stroke-width="1.7" stroke-linecap="round"/></svg>
+      <span>Request Bill</span>
+    </button>
+  </div>
+</section>
+
+<!-- ===================== VIDEO MODAL ===================== -->
+<div class="video-overlay" id="videoOverlay">
+  <div class="video-box">
+    <div class="video-box-head">
+      <span id="videoTitle">Preview</span>
+      <button id="closeVideoBtn" aria-label="Close preview">✕</button>
+    </div>
+    <video id="videoPlayer" controls playsinline></video>
+  </div>
+</div>
+
+<!-- ===================== TOAST ===================== -->
+<div class="toast" id="toast">
+  <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="1.8"/><path d="M8.5 12.2l2.3 2.3L16 9.5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+  <span id="toastMsg">Done</span>
+</div>
+
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   ✏️  EDIT-ME ZONE — change restaurant name, items, prices, photos,
+   and video links here. Nothing below this object needs to change
+   for normal day-to-day menu edits.
+   ════════════════════════════════════════════════════════════════ */
+const CONFIG = {
+  restaurantName: "MY MENU",
+  restaurantTag: "DIGITAL TABLE MENU",
+  tableLabel: "TABLE 07",
+  currencySymbol: "₹",
+  cgstRate: 0.025,   // 2.5% CGST
+  sgstRate: 0.025,   // 2.5% SGST
+
+  categories: [
+    { id: "starters", name: "Starters",  image: "https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=300&auto=format&fit=crop" },
+    { id: "tandoor",   name: "Tandoor",   image: "https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?q=80&w=300&auto=format&fit=crop" },
+    { id: "mains",     name: "Mains",     image: "https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=300&auto=format&fit=crop" },
+    { id: "biryani",   name: "Biryani",   image: "https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=300&auto=format&fit=crop" },
+    { id: "breads",    name: "Breads",    image: "https://images.unsplash.com/photo-1565557623262-b51c2513a641?q=80&w=300&auto=format&fit=crop" },
+    { id: "desserts",  name: "Desserts",  image: "https://images.unsplash.com/photo-1601303516534-bf0b1ea1f6bb?q=80&w=300&auto=format&fit=crop" },
+    { id: "drinks",    name: "Drinks",    image: "https://images.unsplash.com/photo-1571934811356-5cc061b6821f?q=80&w=300&auto=format&fit=crop" }
+  ],
+
+  items: [
+    // STARTERS
+    { id:"s1", category:"starters", name:"Hara Bhara Kebab", note:"Spinach & peas patty, mint chutney", price:240, veg:true, spice:1,
+      image:"https://images.unsplash.com/photo-1606491956689-2ea866880c84?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"s2", category:"starters", name:"Chicken 65", note:"Curry-leaf fried chicken, Chettinad style", price:320, veg:false, spice:3,
+      image:"https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"s3", category:"starters", name:"Paneer Tikka", note:"Char-grilled cottage cheese, smoked masala", price:280, veg:true, spice:2,
+      image:"https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"s4", category:"starters", name:"Amritsari Fish", note:"Carom-spiced batter-fried basa", price:340, veg:false, spice:2,
+      image:"https://images.unsplash.com/photo-1626508035297-0cd27c2725a3?q=80&w=600&auto=format&fit=crop", video:"" },
+
+    // TANDOOR
+    { id:"t1", category:"tandoor", name:"Tandoori Chicken (Half)", note:"Charcoal-clay oven, char-licked skin", price:380, veg:false, spice:2,
+      image:"https://images.unsplash.com/photo-1599487488170-d11ec9c172f0?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"t2", category:"tandoor", name:"Seekh Kebab", note:"Hand-minced mutton, charcoal skewer", price:360, veg:false, spice:2,
+      image:"https://images.unsplash.com/photo-1633237308525-cd587cf71926?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"t3", category:"tandoor", name:"Tandoori Gobi", note:"Cauliflower, yoghurt marinade, char", price:260, veg:true, spice:2,
+      image:"https://images.unsplash.com/photo-1701579231782-933397f7e631?q=80&w=600&auto=format&fit=crop", video:"" },
+
+    // MAINS / CURRIES
+    { id:"m1", category:"mains", name:"Butter Chicken", note:"Tomato-cashew gravy, smoked butter finish", price:380, veg:false, spice:1,
+      image:"https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"m2", category:"mains", name:"Paneer Butter Masala", note:"Cottage cheese in velvet tomato gravy", price:320, veg:true, spice:1,
+      image:"https://images.unsplash.com/photo-1631452180519-c014fe946bc7?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"m3", category:"mains", name:"Dal Makhani", note:"Slow-simmered black lentils, cream", price:260, veg:true, spice:1,
+      image:"https://images.unsplash.com/photo-1631515243349-e0cb75fb8d3a?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"m4", category:"mains", name:"Rogan Josh", note:"Kashmiri red-chilli mutton curry", price:420, veg:false, spice:3,
+      image:"https://images.unsplash.com/photo-1545247181-516773cae754?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"m5", category:"mains", name:"Chana Masala", note:"Chickpeas, onion-tomato masala", price:240, veg:true, spice:2,
+      image:"https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?q=80&w=600&auto=format&fit=crop", video:"" },
+
+    // BIRYANI & RICE
+    { id:"b1", category:"biryani", name:"Hyderabadi Chicken Biryani", note:"Dum-cooked, saffron, fried onions", price:360, veg:false, spice:2,
+      image:"https://images.unsplash.com/photo-1563379091339-03b21ab4a4f8?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"b2", category:"biryani", name:"Veg Dum Biryani", note:"Seasonal vegetables, dum-sealed pot", price:300, veg:true, spice:1,
+      image:"https://images.unsplash.com/photo-1645177628172-a94c1f96e6db?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"b3", category:"biryani", name:"Jeera Rice", note:"Basmati tempered with cumin", price:160, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1596797038530-2c107229654b?q=80&w=600&auto=format&fit=crop", video:"" },
+
+    // BREADS
+    { id:"br1", category:"breads", name:"Butter Naan", note:"Tandoor-puffed, brushed with ghee", price:70, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1565557623262-b51c2513a641?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"br2", category:"breads", name:"Garlic Naan", note:"Charred garlic & coriander", price:90, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1601050690597-df0568f70950?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"br3", category:"breads", name:"Lachha Paratha", note:"Layered, flaky whole-wheat bread", price:80, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1626777553635-be9a36c0fbed?q=80&w=600&auto=format&fit=crop", video:"" },
+
+    // DESSERTS
+    { id:"d1", category:"desserts", name:"Gulab Jamun", note:"Milk dumplings in cardamom syrup", price:140, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1601303516534-bf0b1ea1f6bb?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"d2", category:"desserts", name:"Rasmalai", note:"Saffron-soaked cottage cheese discs", price:160, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1606471191009-63994c53433b?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"d3", category:"desserts", name:"Gajar Halwa", note:"Slow-roasted carrot, ghee & nuts", price:150, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1606482313652-cd736f1bcae9?q=80&w=600&auto=format&fit=crop", video:"" },
+
+    // BEVERAGES
+    { id:"dr1", category:"drinks", name:"Masala Chai", note:"Spiced milk tea, clay-pot brewed", price:90, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1571934811356-5cc061b6821f?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"dr2", category:"drinks", name:"Sweet Lassi", note:"Churned yoghurt, a little rose", price:120, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1626200926749-292869a32649?q=80&w=600&auto=format&fit=crop", video:"" },
+    { id:"dr3", category:"drinks", name:"Nimbu Soda", note:"Fresh lime, soda, black salt", price:100, veg:true, spice:0,
+      image:"https://images.unsplash.com/photo-1437418747212-8d9709afab22?q=80&w=600&auto=format&fit=crop", video:"" }
+  ]
+};
+/* ════════════════════ END EDIT-ME ZONE ════════════════════ */
+
+
+/* ---------- helpers ---------- */
+const fmtINR = n => CONFIG.currencySymbol + n.toLocaleString('en-IN');
+const chiliIcon = filled => `<svg viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6"><path d="M5 8c3-3 9-4 12-1 2 2 1 6-2 9-3 3-9 4-12 1-2-2-1-6 2-9Z"/></svg>`;
+
+const cart = {}; // id -> qty
+
+/* ---------- render category rail ---------- */
+const catRail = document.getElementById('catRail');
+CONFIG.categories.forEach((c, i) => {
+  const btn = document.createElement('button');
+  btn.className = 'cat-btn' + (i === 0 ? ' active' : '');
+  btn.dataset.cat = c.id;
+  btn.innerHTML = `<span class="cat-thumb"><img src="${c.image}" alt="${c.name}" loading="lazy"></span><span>${c.name}</span>`;
+  btn.addEventListener('click', () => {
+    document.getElementById('sec-' + c.id).scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+  catRail.appendChild(btn);
+});
+
+/* ---------- render menu sections ---------- */
+const menuEl = document.getElementById('menu');
+CONFIG.categories.forEach(cat => {
+  const items = CONFIG.items.filter(it => it.category === cat.id);
+  if (!items.length) return;
+
+  const section = document.createElement('section');
+  section.className = 'section-block';
+  section.id = 'sec-' + cat.id;
+
+  const grid = items.map((it, i) => `
+    <article class="dish-card" style="--i:${i}" data-id="${it.id}">
+      <div class="dish-media">
+        <span class="diet-mark ${it.veg ? 'veg' : 'nonveg'}" title="${it.veg ? 'Vegetarian' : 'Non-vegetarian'}"></span>
+        ${it.spice > 0 ? `<span class="spice-row">${Array.from({length:3},(_,k)=>chiliIcon(k < it.spice)).join('')}</span>` : ''}
+        <img src="${it.image}" alt="${it.name}" loading="lazy">
+        <button class="play-btn" data-video="${it.video || ''}" data-title="${it.name}">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7-11-7Z"/></svg> Preview
+        </button>
+      </div>
+      <div class="dish-body">
+        <h3 class="dish-name">${it.name}</h3>
+        <p class="dish-note">${it.note || ''}</p>
+        <div class="dish-foot">
+          <span class="dish-price">${fmtINR(it.price)}</span>
+          <div class="qty-zone" data-id="${it.id}"></div>
+        </div>
+      </div>
+    </article>`).join('');
+
+  section.innerHTML = `
+    <div class="section-head">
+      <h2 class="section-title">${cat.name}</h2>
+      <span class="section-count">${items.length} dish${items.length>1?'es':''}</span>
+    </div>
+    <div class="section-rule"></div>
+    <div class="dish-grid">${grid}</div>`;
+  menuEl.appendChild(section);
+});
+
+/* ---------- qty controls (event delegation) ---------- */
+function renderQtyZones(){
+  document.querySelectorAll('.qty-zone').forEach(zone => {
+    const id = zone.dataset.id;
+    const qty = cart[id] || 0;
+    zone.innerHTML = qty === 0
+      ? `<button class="add-btn" data-add="${id}">Add</button>`
+      : `<div class="qty-stepper">
+           <button data-dec="${id}">−</button><span>${qty}</span><button data-inc="${id}">+</button>
+         </div>`;
+  });
+}
+renderQtyZones();
+
+menuEl.addEventListener('click', e => {
+  const add = e.target.closest('[data-add]');
+  const inc = e.target.closest('[data-inc]');
+  const dec = e.target.closest('[data-dec]');
+  const playBtn = e.target.closest('.play-btn');
+
+  if (add) { cart[add.dataset.add] = 1; renderQtyZones(); updateCart(); }
+  if (inc) { cart[inc.dataset.inc] = (cart[inc.dataset.inc]||0) + 1; renderQtyZones(); updateCart(); }
+  if (dec) {
+    const id = dec.dataset.dec;
+    cart[id] = (cart[id]||0) - 1;
+    if (cart[id] <= 0) delete cart[id];
+    renderQtyZones(); updateCart();
+  }
+  if (playBtn) openVideo(playBtn.dataset.video, playBtn.dataset.title);
+});
+
+/* ---------- cart / chit logic ---------- */
+const miniBar = document.getElementById('miniBar');
+const miniBarCount = document.getElementById('miniBarCount');
+const miniBarTotal = document.getElementById('miniBarTotal');
+const chitItems = document.getElementById('chitItems');
+const chitTotals = document.getElementById('chitTotals');
+
+function updateCart(){
+  const ids = Object.keys(cart);
+  const count = ids.reduce((s,id) => s + cart[id], 0);
+  const subtotal = ids.reduce((s,id) => {
+    const item = CONFIG.items.find(i => i.id === id);
+    return s + item.price * cart[id];
+  }, 0);
+
+  miniBar.classList.toggle('show', count > 0);
+  miniBarCount.textContent = `${count} item${count!==1?'s':''}`;
+  miniBarTotal.textContent = fmtINR(subtotal);
+
+  if (count === 0){
+    chitItems.innerHTML = `<div class="chit-empty">— chit is empty —<br>add a dish to start your order</div>`;
+    chitTotals.innerHTML = '';
+    return;
+  }
+
+  chitItems.innerHTML = ids.map(id => {
+    const item = CONFIG.items.find(i => i.id === id);
+    const qty = cart[id];
+    return `<div class="chit-row">
+      <img src="${item.image}" alt="${item.name}">
+      <div>
+        <p class="chit-row-name">${item.name}</p>
+        <span class="chit-row-sub">${fmtINR(item.price)} each</span>
+      </div>
+      <div class="chit-row-right">
+        <span class="chit-row-price">${fmtINR(item.price*qty)}</span>
+        <div class="chit-qty">
+          <button data-dec="${id}">−</button><span>${qty}</span><button data-inc="${id}">+</button>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  const cgst = subtotal * CONFIG.cgstRate;
+  const sgst = subtotal * CONFIG.sgstRate;
+  const total = subtotal + cgst + sgst;
+
+  chitTotals.innerHTML = `
+    <div class="chit-totals-row"><span>Subtotal</span><span>${fmtINR(Math.round(subtotal))}</span></div>
+    <div class="chit-totals-row"><span>CGST (2.5%)</span><span>${fmtINR(Math.round(cgst))}</span></div>
+    <div class="chit-totals-row"><span>SGST (2.5%)</span><span>${fmtINR(Math.round(sgst))}</span></div>
+    <div class="chit-totals-row grand"><span>Total</span><span>${fmtINR(Math.round(total))}</span></div>`;
+}
+updateCart();
+
+chitItems.addEventListener('click', e => {
+  const inc = e.target.closest('[data-inc]');
+  const dec = e.target.closest('[data-dec]');
+  if (inc) cart[inc.dataset.inc] = (cart[inc.dataset.inc]||0) + 1;
+  if (dec) {
+    const id = dec.dataset.dec;
+    cart[id] = (cart[id]||0) - 1;
+    if (cart[id] <= 0) delete cart[id];
+  }
+  renderQtyZones(); updateCart();
+});
+
+/* ---------- chit open/close ---------- */
+const chit = document.getElementById('chit');
+const chitOverlay = document.getElementById('chitOverlay');
+function openChit(){
+  chit.classList.add('open'); chitOverlay.classList.add('open');
+  document.getElementById('chitTime').textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+}
+function closeChit(){ chit.classList.remove('open'); chitOverlay.classList.remove('open'); }
+document.getElementById('openChitBtn').addEventListener('click', openChit);
+document.getElementById('closeChitBtn').addEventListener('click', closeChit);
+chitOverlay.addEventListener('click', closeChit);
+document.getElementById('placeOrderBtn').addEventListener('click', () => {
+  if (!Object.keys(cart).length){ showToast('Add a dish before sending your order.'); return; }
+  closeChit();
+  showToast('Order sent to the kitchen — thank you!');
+  Object.keys(cart).forEach(id => delete cart[id]);
+  renderQtyZones();
+  updateCart();
+});
+
+/* ---------- restaurant identity from config ---------- */
+document.getElementById('restaurantName').textContent = CONFIG.restaurantName;
+document.getElementById('restaurantTag').textContent = CONFIG.restaurantTag;
+document.getElementById('tableLabel').textContent = CONFIG.tableLabel;
+
+/* ---------- fullscreen ---------- */
+const fsBtn = document.getElementById('fullscreenBtn');
+fsBtn.addEventListener('click', () => {
+  if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+  else document.exitFullscreen?.();
+});
+document.addEventListener('fullscreenchange', () => {
+  fsBtn.querySelector('span').textContent = document.fullscreenElement ? 'Exit Fullscreen' : 'View Fullscreen';
+});
+
+/* ---------- service bell sheet ---------- */
+const bellFab = document.getElementById('bellFab');
+const sheet = document.getElementById('serviceSheet');
+const sheetOverlay = document.getElementById('sheetOverlay');
+function openSheet(){ sheet.classList.add('open'); sheetOverlay.classList.add('open'); }
+function closeSheet(){ sheet.classList.remove('open'); sheetOverlay.classList.remove('open'); }
+bellFab.addEventListener('click', openSheet);
+sheetOverlay.addEventListener('click', closeSheet);
+sheet.querySelectorAll('.sheet-opt').forEach(btn => {
+  btn.addEventListener('click', () => {
+    const req = btn.dataset.request;
+    closeSheet();
+    const msgs = {
+      Water: 'Water is on its way.',
+      Tissues: 'Tissues are on their way.',
+      Waiter: 'Your waiter has been notified.',
+      Bill: 'The bill has been requested for ' + CONFIG.tableLabel + '.'
+    };
+    showToast(msgs[req] || 'Request sent.');
+  });
+});
+
+/* ---------- toast ---------- */
+let toastTimer;
+function showToast(msg){
+  const toast = document.getElementById('toast');
+  document.getElementById('toastMsg').textContent = msg;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('show'), 2600);
+}
+
+/* ---------- video modal ---------- */
+const videoOverlay = document.getElementById('videoOverlay');
+const videoPlayer = document.getElementById('videoPlayer');
+function openVideo(src, title){
+  if (!src){ showToast('No preview video added for this dish yet.'); return; }
+  document.getElementById('videoTitle').textContent = title + ' — preview';
+  videoPlayer.src = src;
+  videoOverlay.classList.add('open');
+  videoPlayer.play().catch(()=>{});
+}
+function closeVideo(){
+  videoOverlay.classList.remove('open');
+  videoPlayer.pause(); videoPlayer.removeAttribute('src'); videoPlayer.load();
+}
+document.getElementById('closeVideoBtn').addEventListener('click', closeVideo);
+videoOverlay.addEventListener('click', e => { if (e.target === videoOverlay) closeVideo(); });
+
+/* ---------- scroll reveal ---------- */
+const revealObserver = new IntersectionObserver(entries => {
+  entries.forEach(en => { if (en.isIntersecting) en.target.classList.add('in-view'); });
+}, { threshold:.12, rootMargin:'0px 0px -40px 0px' });
+document.querySelectorAll('.dish-card').forEach(c => revealObserver.observe(c));
+
+/* ---------- scrollspy for category rail ---------- */
+const sections = [...document.querySelectorAll('.section-block')];
+const catButtons = [...document.querySelectorAll('.cat-btn')];
+const spyObserver = new IntersectionObserver(entries => {
+  entries.forEach(en => {
+    if (en.isIntersecting){
+      const id = en.target.id.replace('sec-','');
+      catButtons.forEach(b => b.classList.toggle('active', b.dataset.cat === id));
+      const activeBtn = catButtons.find(b => b.dataset.cat === id);
+      activeBtn?.scrollIntoView({ behavior:'smooth', inline:'center', block:'nearest' });
+    }
+  });
+}, { rootMargin:'-180px 0px -65% 0px', threshold:0 });
+sections.forEach(s => spyObserver.observe(s));
+</script>
+</body>
+</html>
