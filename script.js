@@ -11,6 +11,20 @@ const fmtINR = n => CONFIG.currencySymbol + n.toLocaleString('en-IN');
 const chiliIcon = filled => `<svg viewBox="0 0 24 24" fill="${filled ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.6"><path d="M5 8c3-3 9-4 12-1 2 2 1 6-2 9-3 3-9 4-12 1-2-2-1-6 2-9Z"/></svg>`;
 
 const cart = {}; // id -> qty
+let currentUxMode = 'modal'; // Default to original
+
+const uxModeSelect = document.getElementById('uxModeSelect');
+if (uxModeSelect) {
+  uxModeSelect.addEventListener('change', (e) => {
+    currentUxMode = e.target.value;
+    // reset UI if needed
+    document.querySelectorAll('.dish-accordion').forEach(a => a.remove());
+    document.getElementById('aiToast').classList.remove('show');
+    document.querySelectorAll('.ai-glow').forEach(el => el.classList.remove('ai-glow'));
+    document.getElementById('aiFab').style.display = 'none';
+    document.querySelectorAll('.ai-carousel-section').forEach(a => a.remove());
+  });
+}
 
 /* ---------- render category rail ---------- */
 const catRail = document.getElementById('catRail');
@@ -111,13 +125,29 @@ menuEl.addEventListener('click', e => {
 
   if (add) { 
     const id = add.dataset.add;
+    // Capture these before the button is detached from the DOM by renderQtyZones()!
+    const dishCard = add.closest('.dish-card');
+    const sectionBlock = add.closest('.section-block');
+    
     cart[id] = 1; 
     renderQtyZones(); 
     updateCart(); 
     
     const item = CONFIG.items.find(i => i.id === id);
     if (item) {
-      openUpsellModal(item);
+      if (currentUxMode === 'modal') {
+        openUpsellModal(item);
+      } else if (currentUxMode === 'toast') {
+        showToastUpsell(item);
+      } else if (currentUxMode === 'accordion') {
+        expandAccordionUpsell(dishCard, item);
+      } else if (currentUxMode === 'glow') {
+        triggerGlowUpsell(item);
+      } else if (currentUxMode === 'peek') {
+        triggerPeekUpsell(item);
+      } else if (currentUxMode === 'carousel') {
+        triggerCarouselUpsell(sectionBlock, item);
+      }
     }
   }
   if (inc) { cart[inc.dataset.inc] = (cart[inc.dataset.inc]||0) + 1; renderQtyZones(); updateCart(); }
@@ -181,6 +211,12 @@ function updateCart(){
     <div class="chit-totals-row"><span>CGST (2.5%)</span><span>${fmtINR(Math.round(cgst))}</span></div>
     <div class="chit-totals-row"><span>SGST (2.5%)</span><span>${fmtINR(Math.round(sgst))}</span></div>
     <div class="chit-totals-row grand"><span>Total</span><span>${fmtINR(Math.round(total))}</span></div>`;
+
+  if (currentUxMode === 'fab') {
+    document.getElementById('aiFab').style.display = count > 0 ? 'flex' : 'none';
+  } else {
+    document.getElementById('aiFab').style.display = 'none';
+  }
 }
 updateCart();
 
@@ -202,6 +238,44 @@ const chitOverlay = document.getElementById('chitOverlay');
 function openChit(){
   chit.classList.add('open'); chitOverlay.classList.add('open');
   document.getElementById('chitTime').textContent = new Date().toLocaleTimeString('en-IN',{hour:'2-digit',minute:'2-digit'});
+  
+  // Render Chit Upsell if mode is active
+  const chitAiUpsell = document.getElementById('chitAiUpsell');
+  if (currentUxMode === 'chit' && Object.keys(cart).length > 0) {
+    const lastAddedId = Object.keys(cart)[Object.keys(cart).length - 1];
+    const item = CONFIG.items.find(i => i.id === lastAddedId);
+    let mappedIds = item ? (CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category]) : null;
+    if (!mappedIds || mappedIds.length === 0) mappedIds = CONFIG.upsellMap['default'];
+    
+    const itemsToUpsell = mappedIds.map(id => CONFIG.items.find(i => i.id === id)).filter(Boolean);
+    if (itemsToUpsell.length > 0) {
+      chitAiUpsell.style.display = 'block';
+      chitAiUpsell.innerHTML = `<div class="chit-ai-upsell-title">✨ AI Chef Recommends</div>` + itemsToUpsell.map(u => `
+        <div class="chit-ai-item">
+          <img src="${u.image || u.img}" alt="${u.name}">
+          <div class="chit-ai-info">
+            <p class="chit-ai-name">${u.name}</p>
+            <span class="chit-ai-price">₹${u.price}</span>
+          </div>
+          <button class="chit-ai-add" data-upsell="${u.id}">+ Add</button>
+        </div>
+      `).join('');
+      
+      chitAiUpsell.querySelectorAll('.chit-ai-add').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+          const uId = e.target.dataset.upsell;
+          cart[uId] = (cart[uId] || 0) + 1;
+          renderQtyZones(); updateCart();
+          e.target.textContent = 'Added ✓';
+          e.target.disabled = true;
+        });
+      });
+    } else {
+      chitAiUpsell.style.display = 'none';
+    }
+  } else {
+    chitAiUpsell.style.display = 'none';
+  }
 }
 function closeChit(){ chit.classList.remove('open'); chitOverlay.classList.remove('open'); }
 document.getElementById('openChitBtn').addEventListener('click', openChit);
@@ -209,12 +283,22 @@ document.getElementById('closeChitBtn').addEventListener('click', closeChit);
 chitOverlay.addEventListener('click', closeChit);
 document.getElementById('placeOrderBtn').addEventListener('click', () => {
   if (!Object.keys(cart).length){ showToast('Add a dish before sending your order.'); return; }
+  
+  if (currentUxMode === 'interstitial') {
+    triggerCheckoutInterstitial();
+    return;
+  }
+  
+  finalizeOrder();
+});
+
+function finalizeOrder() {
   closeChit();
   showToast('Order sent to the kitchen — thank you!');
   Object.keys(cart).forEach(id => delete cart[id]);
   renderQtyZones();
   updateCart();
-});
+}
 
 /* ---------- restaurant identity from config ---------- */
 document.getElementById('restaurantName').textContent = CONFIG.restaurantName;
@@ -430,3 +514,228 @@ function closeUpsellModal() {
 
 upsellClose.addEventListener('click', closeUpsellModal);
 upsellContinueBtn.addEventListener('click', closeUpsellModal);
+
+/* ---------- NEW UX MODES LOGIC ---------- */
+
+// 1. Toast Upsell Logic
+let toastTimeout;
+function showToastUpsell(item) {
+  let mappedIds = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category];
+  if (!mappedIds || mappedIds.length === 0) mappedIds = CONFIG.upsellMap['default'];
+  const uItem = CONFIG.items.find(i => i.id === mappedIds[0]);
+  if (!uItem) return;
+
+  const aiToast = document.getElementById('aiToast');
+  const aiToastText = document.getElementById('aiToastText');
+  const aiToastBtn = document.getElementById('aiToastBtn');
+
+  aiToastText.textContent = `Pair with ${uItem.name}?`;
+  aiToast.classList.add('show');
+  
+  aiToastBtn.onclick = () => {
+    cart[uItem.id] = (cart[uItem.id] || 0) + 1;
+    renderQtyZones(); updateCart();
+    aiToastBtn.textContent = 'Added ✓';
+    setTimeout(() => aiToast.classList.remove('show'), 1000);
+  };
+  aiToastBtn.textContent = `+ Add ₹${uItem.price}`;
+
+  clearTimeout(toastTimeout);
+  toastTimeout = setTimeout(() => {
+    aiToast.classList.remove('show');
+  }, 5000);
+}
+
+// 2. Accordion Upsell Logic
+function expandAccordionUpsell(card, item) {
+  let existing = card.querySelector('.dish-accordion');
+  if (existing) existing.remove();
+
+  let mappedIds = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category];
+  if (!mappedIds || mappedIds.length === 0) mappedIds = CONFIG.upsellMap['default'];
+  const itemsToUpsell = mappedIds.map(id => CONFIG.items.find(i => i.id === id)).filter(Boolean);
+  if (itemsToUpsell.length === 0) return;
+
+  const accordion = document.createElement('div');
+  accordion.className = 'dish-accordion show';
+  accordion.innerHTML = `
+    <div class="accordion-title">✨ AI Recommended Pairings</div>
+    <div class="accordion-items">
+      ${itemsToUpsell.map(u => `
+        <div class="accordion-item">
+          <img src="${u.image || u.img}" alt="${u.name}">
+          <p class="accordion-name">${u.name}</p>
+          <div class="accordion-foot">
+            <span class="accordion-price">₹${u.price}</span>
+            <button class="accordion-add" data-uid="${u.id}">+ Add</button>
+          </div>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  card.appendChild(accordion);
+
+  accordion.querySelectorAll('.accordion-add').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+      const uId = e.target.dataset.uid;
+      cart[uId] = (cart[uId] || 0) + 1;
+      renderQtyZones(); updateCart();
+      e.target.textContent = 'Added ✓';
+      e.target.disabled = true;
+    });
+  });
+}
+
+// 3. Pulse & Glow Mode
+function triggerGlowUpsell(item) {
+  let mappedIds = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category];
+  if (!mappedIds || mappedIds.length === 0) mappedIds = CONFIG.upsellMap['default'];
+  const itemsToUpsell = mappedIds.map(id => CONFIG.items.find(i => i.id === id)).filter(Boolean);
+  
+  itemsToUpsell.forEach(u => {
+    const el = document.querySelector(`.dish-card[data-id="${u.id}"]`);
+    if (el) {
+      el.classList.add('ai-glow');
+      setTimeout(() => el.classList.remove('ai-glow'), 6000);
+    }
+  });
+}
+
+// 4. Cart Peek Mode
+let peekTimeout;
+function triggerPeekUpsell(item) {
+  const peekContainer = document.getElementById('miniBarUpsell');
+  const miniBar = document.getElementById('miniBar');
+  
+  let mappedIds = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category];
+  if (!mappedIds || mappedIds.length === 0) mappedIds = CONFIG.upsellMap['default'];
+  const uItem = CONFIG.items.find(i => i.id === mappedIds[0]);
+  if (!uItem) return;
+
+  peekContainer.innerHTML = `
+    <img src="${uItem.image || uItem.img}" style="width:30px;height:30px;border-radius:4px;object-fit:cover;">
+    <span style="font-size:0.85rem;flex:1;">✨ Add ${uItem.name}?</span>
+    <button class="chit-ai-add" style="padding:4px 8px;font-size:0.75rem;" onclick="addFromPeek('${uItem.id}')">+ ₹${uItem.price}</button>
+  `;
+  
+  miniBar.classList.add('peek');
+  clearTimeout(peekTimeout);
+  peekTimeout = setTimeout(() => {
+    miniBar.classList.remove('peek');
+  }, 4000);
+}
+window.addFromPeek = function(id) {
+  cart[id] = (cart[id]||0) + 1;
+  renderQtyZones(); updateCart();
+  document.getElementById('miniBar').classList.remove('peek');
+};
+
+// 5. Checkout Interstitial
+const checkoutOverlay = document.getElementById('checkoutOverlay');
+function triggerCheckoutInterstitial() {
+  const container = document.getElementById('checkoutUpsellContainer');
+  const cartIds = Object.keys(cart);
+  let upsells = new Set();
+  cartIds.forEach(id => {
+    const item = CONFIG.items.find(i => i.id === id);
+    if(item) {
+      let m = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category] || CONFIG.upsellMap['default'];
+      m.forEach(uid => upsells.add(uid));
+    }
+  });
+  
+  const finalUpsells = Array.from(upsells).map(id => CONFIG.items.find(i => i.id === id)).filter(i => i && !cart[i.id]).slice(0, 2);
+  
+  if (finalUpsells.length === 0) {
+    finalizeOrder();
+    return;
+  }
+  
+  container.innerHTML = finalUpsells.map(u => `
+    <div class="chit-ai-item" style="background:rgba(255,255,255,0.05);padding:12px;border-radius:12px;margin-bottom:8px;">
+      <img src="${u.image || u.img}" alt="${u.name}">
+      <div class="chit-ai-info">
+        <p class="chit-ai-name">${u.name}</p>
+        <span class="chit-ai-price">₹${u.price}</span>
+      </div>
+      <button class="chit-ai-add" onclick="cart['${u.id}']=(cart['${u.id}']||0)+1;this.textContent='Added ✓';this.disabled=true;renderQtyZones();updateCart();">+ Add</button>
+    </div>
+  `).join('');
+  
+  checkoutOverlay.classList.add('open');
+}
+if(document.getElementById('checkoutSkipBtn')) {
+  document.getElementById('checkoutSkipBtn').addEventListener('click', () => { checkoutOverlay.classList.remove('open'); finalizeOrder(); });
+  document.getElementById('checkoutConfirmBtn').addEventListener('click', () => { checkoutOverlay.classList.remove('open'); finalizeOrder(); });
+}
+
+// 6. FAB Mode
+const aiFab = document.getElementById('aiFab');
+const aiSheetOverlay = document.getElementById('aiSheetOverlay');
+const aiSheet = document.getElementById('aiSheet');
+if(aiFab) {
+  aiFab.addEventListener('click', () => {
+    const container = document.getElementById('aiSheetContainer');
+    const cartIds = Object.keys(cart);
+    let upsells = new Set();
+    cartIds.forEach(id => {
+      const item = CONFIG.items.find(i => i.id === id);
+      if(item) {
+        let m = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category] || CONFIG.upsellMap['default'];
+        m.forEach(uid => upsells.add(uid));
+      }
+    });
+    const finalUpsells = Array.from(upsells).map(id => CONFIG.items.find(i => i.id === id)).filter(i => i && !cart[i.id]).slice(0, 3);
+    
+    if (finalUpsells.length === 0) {
+      container.innerHTML = `<p style="padding:20px;text-align:center;">Your order is perfect as is!</p>`;
+    } else {
+      container.innerHTML = finalUpsells.map(u => `
+        <div class="chit-ai-item" style="background:var(--ink-deep);padding:12px;border-radius:12px;">
+          <img src="${u.image || u.img}" alt="${u.name}">
+          <div class="chit-ai-info">
+            <p class="chit-ai-name">${u.name}</p>
+            <span class="chit-ai-price">₹${u.price}</span>
+          </div>
+          <button class="chit-ai-add" onclick="cart['${u.id}']=(cart['${u.id}']||0)+1;this.textContent='Added ✓';this.disabled=true;renderQtyZones();updateCart();">+ Add</button>
+        </div>
+      `).join('');
+    }
+    
+    aiSheetOverlay.classList.add('open');
+    aiSheet.classList.add('open');
+  });
+  aiSheetOverlay.addEventListener('click', () => {
+    aiSheetOverlay.classList.remove('open');
+    aiSheet.classList.remove('open');
+  });
+}
+
+// 7. Carousel Mode
+function triggerCarouselUpsell(section, item) {
+  if (!section || section.nextElementSibling?.classList.contains('ai-carousel-section')) return; // Already exists
+  
+  let mappedIds = CONFIG.upsellMap[item.id] || CONFIG.upsellMap[item.category];
+  if (!mappedIds || mappedIds.length === 0) mappedIds = CONFIG.upsellMap['default'];
+  const itemsToUpsell = mappedIds.map(id => CONFIG.items.find(i => i.id === id)).filter(Boolean);
+  if (itemsToUpsell.length === 0) return;
+
+  const carousel = document.createElement('section');
+  carousel.className = 'ai-carousel-section';
+  carousel.innerHTML = `
+    <div class="ai-carousel-title">✨ Crafted for your table</div>
+    <div class="ai-carousel-track">
+      ${itemsToUpsell.map(u => `
+        <div class="ai-carousel-card">
+          <img src="${u.image || u.img}" alt="${u.name}">
+          <p class="ai-carousel-name">${u.name}</p>
+          <div class="ai-carousel-price">₹${u.price}</div>
+          <button class="chit-ai-add" style="width:100%" onclick="cart['${u.id}']=(cart['${u.id}']||0)+1;this.textContent='Added ✓';this.disabled=true;renderQtyZones();updateCart();">+ Add</button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+  
+  section.insertAdjacentElement('afterend', carousel);
+}

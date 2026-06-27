@@ -26,10 +26,23 @@
       <p class="brand-tag" id="restaurantTag">DIGITAL TABLE MENU</p>
     </div>
   </div>
-  <button class="fullscreen-btn" id="fullscreenBtn" aria-label="Toggle fullscreen">
-    <svg viewBox="0 0 24 24" fill="none"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    <span>View Fullscreen</span>
-  </button>
+  <div class="topbar-actions">
+    <select class="ux-mode-select" id="uxModeSelect" aria-label="UX Mode Switcher">
+      <option value="modal">Mode: Modal Popup</option>
+      <option value="chit">Mode: Cart Upsell</option>
+      <option value="toast">Mode: AI Toast</option>
+      <option value="accordion">Mode: Accordion</option>
+      <option value="glow">Mode: Pulse & Glow</option>
+      <option value="peek">Mode: Cart Peek</option>
+      <option value="interstitial">Mode: Checkout Interstitial</option>
+      <option value="fab">Mode: Floating Sparkle</option>
+      <option value="carousel">Mode: In-Stream Carousel</option>
+    </select>
+    <button class="fullscreen-btn" id="fullscreenBtn" aria-label="Toggle fullscreen">
+      <svg viewBox="0 0 24 24" fill="none"><path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span>View Fullscreen</span>
+    </button>
+  </div>
 </header>
 
 <!-- ===================== CATEGORY RAIL ===================== -->
@@ -64,6 +77,9 @@
 
 <!-- ===================== STICKY MINI CART BAR ===================== -->
 <div class="mini-bar" id="miniBar">
+  <div class="mini-bar-upsell" id="miniBarUpsell">
+    <!-- Populated via JS for peek mode -->
+  </div>
   <div class="mini-bar-inner">
     <div class="mini-bar-info">
       <span class="mini-bar-count" id="miniBarCount">0 items</span>
@@ -91,6 +107,9 @@
     <span id="chitTime">--:--</span>
   </div>
   <div class="chit-items" id="chitItems"></div>
+  <div class="chit-ai-upsell" id="chitAiUpsell" style="display:none;">
+    <!-- Rendered via JS -->
+  </div>
   <div class="chit-totals" id="chitTotals"></div>
   <div class="chit-foot">
     <button class="chit-place-btn" id="placeOrderBtn">
@@ -148,6 +167,39 @@
   <span id="toastMsg">Done</span>
 </div>
 
+<!-- ===================== AI TOAST BANNER ===================== -->
+<div class="ai-toast" id="aiToast">
+  <div class="ai-toast-content">
+    <span class="ai-toast-badge">✨ AI Chef Suggests</span>
+    <p id="aiToastText"></p>
+  </div>
+  <button class="ai-toast-btn" id="aiToastBtn">+ Add</button>
+</div>
+
+
+<!-- ===================== CHECKOUT INTERSTITIAL ===================== -->
+<div class="checkout-overlay" id="checkoutOverlay">
+  <div class="checkout-sheet">
+    <h3>Wait! Complete your meal?</h3>
+    <p>The Chef recommends these pairings for your current order:</p>
+    <div class="checkout-upsell-items" id="checkoutUpsellContainer"></div>
+    <div class="checkout-actions">
+      <button class="checkout-skip" id="checkoutSkipBtn">No thanks, place order</button>
+      <button class="checkout-confirm" id="checkoutConfirmBtn">Send to Kitchen</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== FLOATING SPARKLE FAB ===================== -->
+<button class="ai-fab" id="aiFab" aria-label="AI Recommendations" style="display:none;">✨</button>
+
+<div class="sheet-overlay" id="aiSheetOverlay"></div>
+<section class="sheet" id="aiSheet" aria-label="AI Recommendations">
+  <div class="sheet-handle"></div>
+  <h3>✨ AI Chef's Menu</h3>
+  <p>Based on what you just added, you might like these:</p>
+  <div class="ai-sheet-items" id="aiSheetContainer"></div>
+</section>
 
 <script src="config.js?v=5"></script>
 <script src="script.js?v=5"></script>
